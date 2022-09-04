@@ -31,13 +31,26 @@ namespace DynamicDataTable
         /// <param name="parameterExpression">Initial parameter expression object.</param>
         public ExpressionBuilder(ParameterExpression parameterExpression) => _parameterExpression = parameterExpression;
 
+        /// <summary>
+        /// Create an "And" expression builder.
+        /// </summary>
+        /// <param name="propertyName">The property name.</param>
+        /// <param name="filterOperator">The filter operator.</param>
+        /// <param name="value">The value to be compared.</param>
+        /// <returns>The expression builder object.</returns>
         public ExpressionBuilder<TEntity> And(string propertyName, FilterOperator filterOperator, object? value)
         {
-            var newExpression = ExpressionHelper.GetFilter(_parameterExpression, propertyName, filterOperator, value);
+            var newExpression = ExpressionHelper.CreateFilterExpression(_parameterExpression, propertyName, filterOperator, value);
             Expression = Expression == null ? newExpression : Expression.AndAlso(Expression, newExpression);
             return this;
         }
 
+        /// <summary>
+        /// Create an "And" expression builder.
+        /// </summary>
+        /// <param name="action">The expression builder action delegate.</param>
+        /// <returns>The expression builder object.</returns>
+        /// <exception cref="Exception"></exception>
         public ExpressionBuilder<TEntity> And(Action<ExpressionBuilder<TEntity>> action)
         {
             var builder = new ExpressionBuilder<TEntity>(_parameterExpression);
@@ -52,13 +65,26 @@ namespace DynamicDataTable
             return this;
         }
 
+        /// <summary>
+        /// Create an "Or" expression builder.
+        /// </summary>
+        /// <param name="propertyName">The property name.</param>
+        /// <param name="filterOperator">The filter operator.</param>
+        /// <param name="value">The value to be compared.</param>
+        /// <returns>The expression builder object.</returns>
         public ExpressionBuilder<TEntity> Or(string propertyName, FilterOperator filterOperator, object? value)
         {
-            var newExpression = ExpressionHelper.GetFilter(_parameterExpression, propertyName, filterOperator, value);
+            var newExpression = ExpressionHelper.CreateFilterExpression(_parameterExpression, propertyName, filterOperator, value);
             Expression = Expression == null ? newExpression : Expression.OrElse(Expression, newExpression);
             return this;
         }
 
+        /// <summary>
+        /// Create an "Or" expression builder.
+        /// </summary>
+        /// <param name="action">The expression builder action delegate.</param>
+        /// <returns>The expression builder object.</returns>
+        /// <exception cref="Exception"></exception>
         public ExpressionBuilder<TEntity> Or(Action<ExpressionBuilder<TEntity>> action)
         {
             var builder = new ExpressionBuilder<TEntity>(_parameterExpression);

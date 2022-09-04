@@ -50,7 +50,7 @@ namespace DynamicDataTable
             where TEntity : class
         {
             var expressionParameter = Expression.Parameter(typeof(TEntity));
-            return Expression.Lambda<Func<TEntity, bool>>(GetFilter(expressionParameter, propertyName, filterOperator, value), expressionParameter);
+            return Expression.Lambda<Func<TEntity, bool>>(CreateFilterExpression(expressionParameter, propertyName, filterOperator, value), expressionParameter);
         }
 
         /// <summary>
@@ -74,53 +74,76 @@ namespace DynamicDataTable
             return Expression.Lambda<Func<TEntity, object>>(convertedProperty, parameterExpression);
         }
 
-        public static Expression GetFilter(ParameterExpression parameterExpression, string propertyName, FilterOperator fitlterOperator, object? value)
+        /// <summary>
+        /// Create a filter expression from parameter expression.
+        /// </summary>
+        /// <param name="parameterExpression">The parameter expression.</param>
+        /// <param name="propertyName">The property name.</param>
+        /// <param name="filterOperator">The filter operator.</param>
+        /// <param name="value">Value to be filtered.</param>
+        /// <returns>Filter expression object.</returns>
+        public static Expression CreateFilterExpression(ParameterExpression parameterExpression, string propertyName, FilterOperator filterOperator, object? value)
         {
             var constantExpression = Expression.Constant(value);
             var propertyExpression = parameterExpression.GetNestedProperty(propertyName);
-            return CreateFilter(propertyExpression, fitlterOperator, constantExpression);
-        }
-
-        private static Expression CreateFilter(MemberExpression propertyExpression, FilterOperator filterOperator, ConstantExpression constantExpression)
-        {
             return filterOperator switch
             {
-                FilterOperator.Equals => RobustEquals(propertyExpression, constantExpression),
+                FilterOperator.Equals => GetEqualsMethodCallExpression(propertyExpression, constantExpression),
                 FilterOperator.GreaterThan => Expression.GreaterThan(propertyExpression, constantExpression),
                 FilterOperator.LessThan => Expression.LessThan(propertyExpression, constantExpression),
-                FilterOperator.ContainsIgnoreCase => Expression.Call(propertyExpression, ContainsMethodIgnoreCase!, PrepareConstant(constantExpression), Expression.Constant(StringComparison.OrdinalIgnoreCase)),
+                FilterOperator.ContainsIgnoreCase => Expression.Call(propertyExpression, ContainsMethodIgnoreCase!, PrepareStringConstant(constantExpression), Expression.Constant(StringComparison.OrdinalIgnoreCase)),
                 FilterOperator.Contains => GetContainsMethodCallExpression(propertyExpression, constantExpression),
                 FilterOperator.NotContains => Expression.Not(GetContainsMethodCallExpression(propertyExpression, constantExpression)),
-                FilterOperator.StartsWith => Expression.Call(propertyExpression, StartsWithMethod!, PrepareConstant(constantExpression)),
-                FilterOperator.EndsWith => Expression.Call(propertyExpression, EndsWithMethod!, PrepareConstant(constantExpression)),
-                FilterOperator.NotEqual => Expression.Not(RobustEquals(propertyExpression, constantExpression)),
+                FilterOperator.StartsWith => Expression.Call(propertyExpression, StartsWithMethod!, PrepareStringConstant(constantExpression)),
+                FilterOperator.EndsWith => Expression.Call(propertyExpression, EndsWithMethod!, PrepareStringConstant(constantExpression)),
+                FilterOperator.NotEqual => Expression.Not(GetEqualsMethodCallExpression(propertyExpression, constantExpression)),
                 FilterOperator.GreaterThanOrEqual => Expression.GreaterThanOrEqual(propertyExpression, constantExpression),
                 FilterOperator.LessThanOrEqual => Expression.LessThanOrEqual(propertyExpression, constantExpression),
                 FilterOperator.IsEmpty => Expression.Call(IsNullOrEmptyMethod!, propertyExpression),
-                FilterOperator.IsNotEmpty => Expression.Not(Expression.Call(IsNullOrEmptyMethod!, propertyExpression)), _ => throw new NotImplementedException()
+                FilterOperator.IsNotEmpty => Expression.Not(Expression.Call(IsNullOrEmptyMethod!, propertyExpression)),
+                _ => throw new NotImplementedException()
             };
         }
 
-        private static Expression RobustEquals(MemberExpression propertyExpression, ConstantExpression constant)
+        /// <summary>
+        /// Get <see cref="object.Equals(object?)"/> method call expression.
+        /// </summary>
+        /// <param name="propertyExpression">The property expression.</param>
+        /// <param name="constantExpression">The constant expression.</param>
+        /// <returns>Method call <see cref="object.Equals(object?)"/> expression.</returns>
+        private static Expression GetEqualsMethodCallExpression(MemberExpression propertyExpression, ConstantExpression constantExpression)
         {
-            return propertyExpression.Type == typeof(bool) && bool.TryParse(constant.Value?.ToString(), out var value)
+            return propertyExpression.Type == typeof(bool) && bool.TryParse(constantExpression.Value?.ToString(), out var value)
                 ? Expression.Equal(propertyExpression, Expression.Constant(value))
-                : Expression.Equal(propertyExpression, constant);
+                : Expression.Equal(propertyExpression, constantExpression);
         }
 
-        private static Expression GetContainsMethodCallExpression(MemberExpression propertyExpression, ConstantExpression constant)
+        /// <summary>
+        /// Get <see cref="string.Contains(string)"/> method call expression.
+        /// </summary>
+        /// <param name="propertyExpression">The property expression.</param>
+        /// <param name="constantExpression">The constant expression.</param>
+        /// <returns>Method call <see cref="string.Contains(string)"/> expression.</returns>
+        /// <exception cref="NotImplementedException"></exception>
+        private static Expression GetContainsMethodCallExpression(MemberExpression propertyExpression, ConstantExpression constantExpression)
         {
             if (propertyExpression.Type == typeof(string))
             {
-                return Expression.Call(propertyExpression, ContainsMethod!, PrepareConstant(constant));
+                return Expression.Call(propertyExpression, ContainsMethod!, PrepareStringConstant(constantExpression));
             }
             throw new NotImplementedException($"{propertyExpression.Type} contains is not implemented.");
         }
 
-        private static Expression PrepareConstant(ConstantExpression constant)
+        /// <summary>
+        /// Convert given constant expression into string constant expression.
+        /// Used for Contains, StartsWith, and EndsWith filter.
+        /// </summary>
+        /// <param name="constantExpression">The constant expression</param>
+        /// <returns>Method call <see cref="string.ToString"/> expression.</returns>
+        private static Expression PrepareStringConstant(ConstantExpression constantExpression)
         {
-            if (constant.Type == typeof(string)) return constant;
-            var convertedExpression = Expression.Convert(constant, typeof(object));
+            if (constantExpression.Type == typeof(string)) return constantExpression;
+            var convertedExpression = Expression.Convert(constantExpression, typeof(object));
             return Expression.Call(convertedExpression, ToStringMethod!);
         }
     }

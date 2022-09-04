@@ -13,7 +13,7 @@ namespace DynamicDataTable.Test
         public string? Email { get; set; }
     }
 
-    public class UnitTest1
+    public class MainUnitTest
     {
         [Fact]
         public void TestToDataTableResponse()
@@ -76,10 +76,15 @@ namespace DynamicDataTable.Test
                     { "columns[0][orderable]", new StringValues("true") },
                     { "columns[0][search][value]", new StringValues("") },
                     { "columns[0][search][regex]", new StringValues("false") },
+                    { "columns[1][data]", new StringValues("name") },
+                    { "columns[1][name]", new StringValues("Name") },
+                    { "columns[1][searchable]", new StringValues("true") },
+                    { "columns[1][orderable]", new StringValues("true") },
+                    { "columns[1][search][value]", new StringValues("son 7") },
+                    { "columns[1][search][regex]", new StringValues("false") },
                 }
             );
             var vp = new FormValueProvider(BindingSource.Form, formCollection, CultureInfo.CurrentCulture);
-
             var modelBinder = new DataTableRequestModelBinder();
             var modelMetadataProvider = new EmptyModelMetadataProvider();
             var bindingContext = new DefaultModelBindingContext {
